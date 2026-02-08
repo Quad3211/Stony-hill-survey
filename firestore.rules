@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Match the submissions collection
+    match /submissions/{submissionId} {
+      // Allow anyone (including students) to CREATE a new survey
+      allow create: if true;
+      
+      // Only allow authenticated admins to READ, UPDATE, or DELETE surveys
+      // 'update' is required for "Mark as Read" and "Soft Delete" (trash)
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}

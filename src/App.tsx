@@ -9,6 +9,7 @@ import NonResidentialSurvey from "./pages/student/NonResidentialSurvey";
 import BugReport from "./pages/BugReport";
 import AdminLogin from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
+import AdminTrash from "./pages/admin/Trash";
 import "./App.css";
 
 function App() {
@@ -38,6 +39,14 @@ function App() {
               element={
                 <AuthGuard>
                   <Dashboard />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/admin/trash"
+              element={
+                <AuthGuard>
+                  <AdminTrash />
                 </AuthGuard>
               }
             />

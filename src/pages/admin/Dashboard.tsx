@@ -22,6 +22,7 @@ import {
   Bell,
   Filter,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -34,6 +35,7 @@ interface Submission {
   priority?: "Low" | "Medium" | "High"; // For Bug Report
   read?: boolean;
   timestamp: Timestamp;
+  deleted?: boolean;
   [key: string]: any;
 }
 
@@ -52,10 +54,12 @@ const Dashboard = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Submission[];
+      const data = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((doc: any) => !doc.deleted) as Submission[];
       setSubmissions(data);
       setLoading(false);
     });
@@ -72,8 +76,20 @@ const Dashboard = () => {
     try {
       const submissionRef = doc(db, "submissions", id);
       await updateDoc(submissionRef, { read: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error marking as read:", error);
+      alert(`Error marking as read: ${error.message}`);
+    }
+  };
+
+  const handleSoftDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to move this to trash?")) return;
+    try {
+      const submissionRef = doc(db, "submissions", id);
+      await updateDoc(submissionRef, { deleted: true });
+    } catch (error: any) {
+      console.error("Error moving to trash:", error);
+      alert(`Error moving to trash: ${error.message}`);
     }
   };
 
@@ -160,6 +176,15 @@ const Dashboard = () => {
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/admin/trash")}
+                className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Trash
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -331,17 +356,28 @@ const Dashboard = () => {
                         {submission.timestamp?.toDate().toLocaleString()}
                       </span>
                     </div>
-                    {!submission.read && (
+                    <div className="flex items-center gap-2">
+                      {!submission.read && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleMarkAsRead(submission.id)}
+                          className="self-start sm:self-auto text-xs"
+                        >
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Mark as Read
+                        </Button>
+                      )}
                       <Button
                         size="sm"
-                        variant="secondary"
-                        onClick={() => handleMarkAsRead(submission.id)}
-                        className="self-start sm:self-auto text-xs"
+                        variant="ghost"
+                        onClick={() => handleSoftDelete(submission.id)}
+                        className="text-gray-400 hover:text-red-600"
+                        title="Move to Trash"
                       >
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Mark as Read
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
+                    </div>
                   </div>
 
                   <div className="p-6">
