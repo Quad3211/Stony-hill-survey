@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import StudentSelect from "./pages/student/StudentSelect";
 import ResidentialSurvey from "./pages/student/ResidentialSurvey";
 import NonResidentialSurvey from "./pages/student/NonResidentialSurvey";
+import BugReport from "./pages/BugReport";
 import AdminLogin from "./pages/admin/Login";
 import Dashboard from "./pages/admin/Dashboard";
 import "./App.css";
@@ -28,6 +29,7 @@ function App() {
               path="/student/non-residential"
               element={<NonResidentialSurvey />}
             />
+            <Route path="/report-bug" element={<BugReport />} />
 
             {/* Admin Routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
