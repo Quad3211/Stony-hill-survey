@@ -4,12 +4,26 @@ service cloud.firestore {
     
     // Match the submissions collection
     match /submissions/{submissionId} {
-      // Allow anyone (including students) to CREATE a new survey
-      allow create: if true;
+      
+      // Allow anyone to CREATE a new survey, but with strict validation
+      allow create: if true 
+        && isValidSubmission();
       
       // Only allow authenticated admins to READ, UPDATE, or DELETE surveys
-      // 'update' is required for "Mark as Read" and "Soft Delete" (trash)
       allow read, update, delete: if request.auth != null;
+
+      // Validation function
+      function isValidSubmission() {
+        let data = request.resource.data;
+        
+        // Check required fields based on type
+        return data.type in ['Residential', 'Non-Residential', 'Bug Report']
+          && data.keys().hasAll(['type', 'timestamp', 'read'])
+          && data.read == false
+          && (data.deleted == false || !("deleted" in data))
+          // Validate timestamp is recent (optional, but good practice to prevent backdating)
+          && data.timestamp == request.time;
+      }
     }
   }
 }

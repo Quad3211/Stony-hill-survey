@@ -23,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import clsx from "clsx";
+import toast from "react-hot-toast";
 
 interface Submission {
   id: string;
@@ -69,9 +70,10 @@ const Dashboard = () => {
     try {
       const submissionRef = doc(db, "submissions", id);
       await updateDoc(submissionRef, { read: true });
+      toast.success("Marked as read");
     } catch (error: any) {
       console.error("Error marking as read:", error);
-      alert(`Error marking as read: ${error.message}`);
+      toast.error(`Error marking as read: ${error.message}`);
     }
   };
 
@@ -80,9 +82,10 @@ const Dashboard = () => {
     try {
       const submissionRef = doc(db, "submissions", id);
       await updateDoc(submissionRef, { deleted: true });
+      toast.success("Moved to trash");
     } catch (error: any) {
       console.error("Error moving to trash:", error);
-      alert(`Error moving to trash: ${error.message}`);
+      toast.error(`Error moving to trash: ${error.message}`);
     }
   };
 

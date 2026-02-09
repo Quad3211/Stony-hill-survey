@@ -7,6 +7,8 @@ import { db } from "../../lib/firebase";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
+import SuccessModal from "../../components/SuccessModal";
+import toast from "react-hot-toast";
 
 const schema = z.object({
   dormCondition: z.string().min(1, "Dorm condition is required"),
@@ -36,46 +38,17 @@ const ResidentialSurvey = () => {
         timestamp: serverTimestamp(),
       });
       setSubmitted(true);
+      toast.success("Survey submitted successfully!");
     } catch (error) {
       console.error("Error submitting survey:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      alert(`Failed to submit survey. Error: ${errorMessage}`);
+      toast.error(`Failed to submit survey: ${errorMessage}`);
     }
   };
 
   if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] bg-gray-50 p-4">
-        <div className="bg-white p-12 rounded-2xl shadow-xl max-w-lg w-full text-center border top-0 border-gray-100">
-          <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-8">
-            <svg
-              className="h-10 w-10 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-4">
-            Thank You!
-          </h2>
-          <p className="text-gray-600 mb-8 text-lg">
-            Your feedback has been submitted successfully. We appreciate your
-            input in making our campus better.
-          </p>
-          <Button onClick={() => (window.location.href = "/")} size="lg">
-            Return to Home
-          </Button>
-        </div>
-      </div>
-    );
+    return <SuccessModal />;
   }
 
   return (

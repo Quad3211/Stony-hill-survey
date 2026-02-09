@@ -7,6 +7,8 @@ import { db } from "../lib/firebase";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Textarea } from "../components/ui/Textarea";
+import SuccessModal from "../components/SuccessModal";
+import toast from "react-hot-toast";
 
 const schema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -38,45 +40,21 @@ const BugReport = () => {
         timestamp: serverTimestamp(),
       });
       setSubmitted(true);
+      toast.success("Bug report submitted successfully!");
     } catch (error) {
       console.error("Error submitting bug report:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      alert(`Failed to submit bug report. Error: ${errorMessage}`);
+      toast.error(`Failed to submit bug report: ${errorMessage}`);
     }
   };
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] bg-gray-50 p-4">
-        <div className="bg-white p-12 rounded-2xl shadow-xl max-w-lg w-full text-center border top-0 border-gray-100">
-          <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-blue-100 mb-8">
-            <svg
-              className="h-10 w-10 text-blue-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-4">
-            Report Submitted
-          </h2>
-          <p className="text-gray-600 mb-8 text-lg">
-            Thank you for helping us improve. We will review your report
-            shortly.
-          </p>
-          <Button onClick={() => (window.location.href = "/")} size="lg">
-            Return to Home
-          </Button>
-        </div>
-      </div>
+      <SuccessModal
+        title="Report Submitted"
+        message="Thank you for helping us improve. We will review your report shortly."
+      />
     );
   }
 

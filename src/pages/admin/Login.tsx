@@ -5,8 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import toast from "react-hot-toast";
 
 const schema = z.object({
   email: z
@@ -22,10 +24,16 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 const AdminLogin = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/admin/dashboard";
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  if (user) {
+    navigate(from, { replace: true });
+    return null;
+  }
 
   const {
     register,
@@ -35,14 +43,18 @@ const AdminLogin = () => {
     resolver: zodResolver(schema),
   });
 
+  // ... existing code ...
+
   const onSubmit = async (data: FormData) => {
     try {
       setLoginError(null);
       await signInWithEmailAndPassword(auth, data.email, data.password);
+      toast.success("Welcome back!");
       navigate(from, { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
       setLoginError("Invalid email or password");
+      toast.error("Invalid email or password");
     }
   };
 

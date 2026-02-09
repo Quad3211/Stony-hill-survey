@@ -15,6 +15,7 @@ import { db, auth } from "../../lib/firebase";
 import { Button } from "../../components/ui/Button";
 import { LogOut, ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
 import clsx from "clsx";
+import toast from "react-hot-toast";
 
 interface Submission {
   id: string;
@@ -63,9 +64,10 @@ const AdminTrash = () => {
     try {
       const submissionRef = doc(db, "submissions", id);
       await updateDoc(submissionRef, { deleted: false });
+      toast.success("Submission restored!");
     } catch (error: any) {
       console.error("Error restoring submission:", error);
-      alert(`Error restoring submission: ${error.message}`);
+      toast.error(`Error restoring submission: ${error.message}`);
     }
   };
 
@@ -79,9 +81,10 @@ const AdminTrash = () => {
 
     try {
       await deleteDoc(doc(db, "submissions", id));
+      toast.success("Submission permanently deleted.");
     } catch (error: any) {
       console.error("Error permanently deleting submission:", error);
-      alert(`Error deleting submission: ${error.message}`);
+      toast.error(`Error deleting submission: ${error.message}`);
     }
   };
 
