@@ -13,15 +13,7 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../../lib/firebase";
 import { Button } from "../../components/ui/Button";
-import {
-  LogOut,
-  Home,
-  User,
-  AlertTriangle,
-  ArrowLeft,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { LogOut, ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
 import clsx from "clsx";
 
 interface Submission {
