@@ -58,10 +58,11 @@ const ResidentialSurvey = () => {
           <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
             Residential Experience Survey
           </h1>
-          <p className="mt-4 text-lg text-gray-600">
-            Tell us about your life on campus. Your honest feedback helps
-            improve living conditions for everyone.
-          </p>
+          Tell us about your life on campus. Whether you have{" "}
+          <strong>
+            Concerns, Suggestions, Complaints, or Improvement ideas
+          </strong>
+          , your honest feedback helps improve living conditions for everyone.
         </div>
 
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">

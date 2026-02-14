@@ -60,10 +60,11 @@ const NonResidentialSurvey = () => {
           <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
             Non-Residential Student Survey
           </h1>
-          <p className="mt-4 text-lg text-gray-600">
-            Tell us about your learning environment. Your feedback helps improve
-            academic facilities for everyone.
-          </p>
+          Tell us about your learning environment. Whether you have{" "}
+          <strong>
+            Concerns, Suggestions, Complaints, or Improvement ideas
+          </strong>
+          , your feedback helps improve academic facilities for everyone.
         </div>
 
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden">

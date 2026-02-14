@@ -9,13 +9,10 @@ import "./App.css";
 
 // Lazy load pages
 const Home = lazy(() => import("./pages/Home"));
-const StudentSelect = lazy(() => import("./pages/student/StudentSelect"));
-const ResidentialSurvey = lazy(
-  () => import("./pages/student/ResidentialSurvey"),
+const StudentVoiceSurvey = lazy(
+  () => import("./pages/student/StudentVoiceSurvey"),
 );
-const NonResidentialSurvey = lazy(
-  () => import("./pages/student/NonResidentialSurvey"),
-);
+const DormLifeSurvey = lazy(() => import("./pages/student/DormLifeSurvey"));
 const BugReport = lazy(() => import("./pages/BugReport"));
 const AdminLogin = lazy(() => import("./pages/admin/Login"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -33,15 +30,9 @@ function App() {
               <Route path="/" element={<Home />} />
 
               {/* Student Routes */}
-              <Route path="/student/select" element={<StudentSelect />} />
-              <Route
-                path="/student/residential"
-                element={<ResidentialSurvey />}
-              />
-              <Route
-                path="/student/non-residential"
-                element={<NonResidentialSurvey />}
-              />
+              {/* Student Routes */}
+              <Route path="/student/voice" element={<StudentVoiceSurvey />} />
+              <Route path="/student/dorm-life" element={<DormLifeSurvey />} />
               <Route path="/report-bug" element={<BugReport />} />
 
               {/* Admin Routes */}

@@ -29,7 +29,7 @@ const Navbar = () => {
             <Link to="/" className="shrink-0 flex items-center gap-2">
               <GraduationCap className="h-8 w-8 text-indigo-600" />
               <span className="font-bold text-xl text-gray-900 tracking-tight">
-                Stony Hill Academy
+                HEART EASTERN TVET INSTITUTE STONY HILL CAMPUS
               </span>
             </Link>
           </div>

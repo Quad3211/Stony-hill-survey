@@ -1,42 +1,46 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import heroBg from "../assets/hero-bg.png"; // Import the image
 
 const Home = () => {
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">
       {/* Hero Section */}
-      <div className="relative bg-indigo-900 text-white">
+      <div className="relative bg-gray-900 text-white overflow-hidden">
         <div className="absolute inset-0">
           <img
-            className="w-full h-full object-cover opacity-30"
+            className="w-full h-full object-cover opacity-40"
             src={heroBg}
             alt="Stony Hill Academy Campus"
           />
-          <div className="absolute inset-0 bg-indigo-900 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-linear-to-r from-indigo-900/90 to-purple-900/80 mix-blend-multiply" />
         </div>
-        <div className="relative max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:py-32 lg:px-8 flex flex-col items-center text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl mb-4 sm:mb-6">
-            Welcome to Stony Hill Academy
+        <div className="relative max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:py-32 lg:px-8 flex flex-col items-center text-center">
+          <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl tracking-tight drop-shadow-lg">
+            HEART EASTERN TVET INSTITUTE <br className="hidden md:block" />
+            STONY HILL CAMPUS
           </h1>
-          <p className="mt-4 sm:mt-6 max-w-2xl text-lg sm:text-xl text-indigo-100 mb-8 sm:mb-10">
-            Empowering students to shape their environment. Your voice matters
-            in building a better community for everyone.
+          <p className="mt-6 max-w-2xl mx-auto text-lg text-gray-100 sm:text-xl md:mt-10 md:text-2xl font-light shadow-black/50 drop-shadow-md">
+            Student Voice & Feedback System. Empowering students to shape their
+            environment.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-            <Link
-              to="/student/select"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 md:py-4 md:text-lg md:px-8 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              Start Student Survey
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-            <Link
-              to="/admin/login"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-8 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              Admin Portal
-            </Link>
+          <div className="mt-10 flex flex-col sm:flex-row gap-5 w-full justify-center">
+            <div className="rounded-md shadow-lg">
+              <Link
+                to="/student/voice"
+                className="w-full flex items-center justify-center px-8 py-4 border border-transparent text-lg font-bold rounded-full text-indigo-700 bg-white hover:bg-gray-50 transition-transform transform hover:-translate-y-1 md:py-4 md:text-xl md:px-10"
+              >
+                Start Student Survey
+              </Link>
+            </div>
+            <div className="rounded-md shadow-lg">
+              <Link
+                to="/student/dorm-life"
+                className="w-full flex items-center justify-center px-8 py-4 border-2 border-white text-lg font-bold rounded-full text-white bg-transparent hover:bg-white/10 transition-transform transform hover:-translate-y-1 md:py-4 md:text-xl md:px-10"
+              >
+                Dorm Life Survey
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -100,8 +104,8 @@ const Home = () => {
       <div className="bg-gray-50 border-t border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
           <p className="text-gray-500 text-sm mb-4">
-            &copy; {new Date().getFullYear()} Stony Hill Academy. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} Heart Eastern Tvet Institute Stony
+            Hill Campus. All rights reserved.
           </p>
           <Link
             to="/report-bug"

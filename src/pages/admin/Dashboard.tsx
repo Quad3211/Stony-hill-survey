@@ -15,26 +15,42 @@ import {
   Download,
   FileText,
   Home,
-  User,
   CheckCircle,
   Bell,
   Filter,
-  AlertTriangle,
   Trash2,
+  MessageSquare,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
 import clsx from "clsx";
 import toast from "react-hot-toast";
 
 interface Submission {
   id: string;
-  type: "Residential" | "Non-Residential" | "Bug Report";
-  review?: string; // Optional because Bug Report uses description
-  description?: string; // For Bug Report
-  title?: string; // For Bug Report
-  priority?: "Low" | "Medium" | "High"; // For Bug Report
+  type:
+    | "Residential"
+    | "Non-Residential"
+    | "Bug Report"
+    | "Student Voice"
+    | "Dorm Life";
+  review?: string;
+  description?: string;
+  title?: string;
+  priority?: "Low" | "Medium" | "High";
   read?: boolean;
   timestamp: Timestamp;
   deleted?: boolean;
+  meta?: {
+    sentiment: "Positive" | "Neutral" | "Negative";
+    urgency: "Critical" | "High" | "Normal";
+    flagged: boolean;
+  };
+  dormBlock?: string;
+  roomNumber?: string;
+  satisfactionRating?: string;
+  complaints?: string;
+  suggestions?: string;
   [key: string]: any;
 }
 
@@ -42,7 +58,13 @@ const Dashboard = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<
-    "All" | "Residential" | "Non-Residential" | "Bug Report" | "Unread"
+    | "All"
+    | "Residential"
+    | "Non-Residential"
+    | "Bug Report"
+    | "Student Voice"
+    | "Unread"
+    | "Dorm Life"
   >("All");
   const navigate = useNavigate();
 
@@ -89,6 +111,32 @@ const Dashboard = () => {
     }
   };
 
+  // Analytics
+  const totalSubmissions = submissions.length;
+  const studentVoiceCount = submissions.filter(
+    (s) => s.type === "Student Voice",
+  ).length;
+  const dormLifeCount = submissions.filter(
+    (s) => s.type === "Dorm Life",
+  ).length;
+  const bugReportCount = submissions.filter(
+    (s) => s.type === "Bug Report",
+  ).length;
+  const unreadCount = submissions.filter((s) => !s.read).length;
+  const urgentCount = submissions.filter(
+    (s) =>
+      s.meta?.urgency === "Critical" ||
+      s.meta?.urgency === "High" ||
+      s.priority === "High",
+  ).length;
+
+  // Filtered Data
+  const filteredSubmissions = submissions.filter((s) => {
+    if (filter === "All") return true;
+    if (filter === "Unread") return !s.read;
+    return s.type === filter;
+  });
+
   const handleExport = () => {
     if (submissions.length === 0) return;
 
@@ -96,25 +144,27 @@ const Dashboard = () => {
       "ID",
       "Type",
       "Date",
-      "Title/Review",
-      "Description/Details",
-      "Priority/Conditions",
+      "Title/Review/Feedback",
+      "Description/Meta",
       "Status",
+      "Sentiment",
+      "Urgency",
     ];
 
     const csvRows = [headers.join(",")];
 
     submissions.forEach((sub) => {
       const date = sub.timestamp?.toDate().toLocaleDateString() || "";
-      let titleReview = sub.title || sub.review || "";
+      let titleReview =
+        sub.title || sub.review || sub.openFeedback || sub.complaints || "";
       let descDetails = sub.description || "";
-      let priorityCond = sub.priority || "";
 
-      // Format details based on type for CSV
-      if (sub.type === "Residential") {
-        priorityCond = `Dorm: ${sub.dormCondition}, Clean: ${sub.cleanliness}, Food: ${sub.foodQuality}`;
-      } else if (sub.type === "Non-Residential") {
-        priorityCond = `Classroom: ${sub.classroomEnvironment}, Teaching: ${sub.teachingQuality}, Facilities: ${sub.facilities}`;
+      if (sub.type === "Student Voice") {
+        titleReview = sub.openFeedback || "No open feedback";
+        descDetails = `Ratings: Gen=${sub.generalExperienceRating}, Safety=${sub.safetyRating}`;
+      } else if (sub.type === "Dorm Life") {
+        titleReview = sub.complaints || "No complaints";
+        descDetails = `Block: ${sub.dormBlock}, Room: ${sub.roomNumber}, Rating: ${sub.satisfactionRating}, Suggestion: ${sub.suggestions}`;
       }
 
       const row = [
@@ -123,8 +173,9 @@ const Dashboard = () => {
         `"${date}"`,
         `"${titleReview.replace(/"/g, '""')}"`,
         `"${descDetails.replace(/"/g, '""')}"`,
-        `"${priorityCond.replace(/"/g, '""')}"`,
         sub.read ? "Read" : "Unread",
+        sub.meta?.sentiment || "N/A",
+        sub.meta?.urgency || "N/A",
       ];
       csvRows.push(row.join(","));
     });
@@ -140,25 +191,21 @@ const Dashboard = () => {
     document.body.removeChild(a);
   };
 
-  // Analytics
-  const totalSubmissions = submissions.length;
-  const residentialCount = submissions.filter(
-    (s) => s.type === "Residential",
-  ).length;
-  const nonResidentialCount = submissions.filter(
-    (s) => s.type === "Non-Residential",
-  ).length;
-  const bugReportCount = submissions.filter(
-    (s) => s.type === "Bug Report",
-  ).length;
-  const unreadCount = submissions.filter((s) => !s.read).length;
-
-  // Filtered Data
-  const filteredSubmissions = submissions.filter((s) => {
-    if (filter === "All") return true;
-    if (filter === "Unread") return !s.read;
-    return s.type === filter;
-  });
+  const runMigration = async () => {
+    const { migrateLegacySubmissions } = await import("../../lib/migration");
+    if (
+      window.confirm(
+        "This will convert all 'Residential' surveys to 'Dorm Life' and 'Non-Residential' to 'Student Voice'. Continue?",
+      )
+    ) {
+      const result = await migrateLegacySubmissions();
+      if (result.success) {
+        toast.success(`Migration complete! Processed ${result.count} records.`);
+      } else {
+        toast.error("Migration failed. Check console for details.");
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -168,6 +215,15 @@ const Dashboard = () => {
           <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runMigration}
+            className="flex items-center gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+          >
+            <Activity className="w-4 h-4" />
+            <span className="hidden sm:inline">Migrate Legacy Data</span>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -190,7 +246,7 @@ const Dashboard = () => {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">
@@ -208,13 +264,27 @@ const Dashboard = () => {
         <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">
-              Res
+              Voice
             </p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900">
-              {residentialCount}
+              {studentVoiceCount}
             </p>
           </div>
-          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-green-50 rounded-full flex items-center justify-center text-green-600">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-purple-50 rounded-full flex items-center justify-center text-purple-600">
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-gray-100 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">
+              Dorm
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">
+              {dormLifeCount}
+            </p>
+          </div>
+          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
             <Home className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
@@ -222,14 +292,14 @@ const Dashboard = () => {
         <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">
-              Non-Res
+              Urgent
             </p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900">
-              {nonResidentialCount}
+              {urgentCount}
             </p>
           </div>
-          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
-            <User className="w-4 h-4 sm:w-5 sm:h-5" />
+          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-red-50 rounded-full flex items-center justify-center text-red-600">
+            <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
@@ -242,7 +312,7 @@ const Dashboard = () => {
               {bugReportCount}
             </p>
           </div>
-          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-red-50 rounded-full flex items-center justify-center text-red-600">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-orange-50 rounded-full flex items-center justify-center text-orange-600">
             <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
@@ -273,8 +343,8 @@ const Dashboard = () => {
             [
               "All",
               "Unread",
-              "Residential",
-              "Non-Residential",
+              "Student Voice",
+              "Dorm Life",
               "Bug Report",
             ] as const
           ).map((f) => (
@@ -317,27 +387,43 @@ const Dashboard = () => {
                   submission.read
                     ? "border-gray-200"
                     : "border-indigo-200 ring-1 ring-indigo-50 shadow-md",
-                  submission.type === "Bug Report" &&
-                    !submission.read &&
-                    "border-red-200 ring-red-50",
+                  submission.meta?.flagged && "border-red-500 ring-red-200", // Visual cue for flagged items
                 )}
               >
                 {/* Card Header */}
                 <div className="px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/50">
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {!submission.read && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         New
                       </span>
                     )}
+
+                    {/* Metadata Badges */}
+                    {submission.meta?.urgency &&
+                      submission.meta.urgency !== "Normal" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          {submission.meta.urgency}
+                        </span>
+                      )}
+                    {submission.meta?.flagged && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
+                        ⚠️ FLAGGED
+                      </span>
+                    )}
+
                     <span
                       className={clsx(
                         "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                        submission.type === "Residential"
-                          ? "bg-green-100 text-green-800"
-                          : submission.type === "Non-Residential"
+                        submission.type === "Student Voice"
+                          ? "bg-purple-100 text-purple-800"
+                          : submission.type === "Dorm Life"
                             ? "bg-blue-100 text-blue-800"
-                            : "bg-red-100 text-red-800",
+                            : submission.type === "Residential"
+                              ? "bg-green-100 text-green-800"
+                              : submission.type === "Non-Residential"
+                                ? "bg-cyan-100 text-cyan-800"
+                                : "bg-orange-100 text-orange-800",
                       )}
                     >
                       {submission.type}
@@ -372,8 +458,140 @@ const Dashboard = () => {
 
                 {/* Card Body */}
                 <div className="p-4 sm:p-6">
+                  {/* Student Voice View */}
+                  {submission.type === "Student Voice" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="text-xs text-gray-500 block">
+                            General Exp
+                          </span>
+                          <span className="font-bold">
+                            {submission.generalExperienceRating}/5
+                          </span>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="text-xs text-gray-500 block">
+                            Safety
+                          </span>
+                          <span className="font-bold">
+                            {submission.safetyRating}/5
+                          </span>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="text-xs text-gray-500 block">
+                            Learning
+                          </span>
+                          <span className="font-bold">
+                            {submission.learningSupportRating}/5
+                          </span>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="text-xs text-gray-500 block">
+                            Communication
+                          </span>
+                          <span className="font-bold">
+                            {submission.communicationRating}/5
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Sections with content */}
+                      {submission.openFeedback && (
+                        <div>
+                          <h4 className="text-sm font-bold text-gray-900">
+                            Open Feedback
+                          </h4>
+                          <p className="text-gray-700 text-sm mt-1">
+                            {submission.openFeedback}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {submission.learningImprovements && (
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900">
+                              Learning Improvements
+                            </h4>
+                            <p className="text-gray-600 text-sm">
+                              {submission.learningImprovements}
+                            </p>
+                          </div>
+                        )}
+                        {submission.cultureImprovements && (
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900">
+                              Culture Improvements
+                            </h4>
+                            <p className="text-gray-600 text-sm">
+                              {submission.cultureImprovements}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dorm Life View */}
+                  {submission.type === "Dorm Life" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="text-xs text-gray-500 block">
+                            Block
+                          </span>
+                          <span className="font-bold">
+                            {submission.dormBlock}
+                          </span>
+                        </div>
+                        {submission.roomNumber && (
+                          <div className="bg-gray-50 p-2 rounded">
+                            <span className="text-xs text-gray-500 block">
+                              Room
+                            </span>
+                            <span className="font-bold">
+                              {submission.roomNumber}
+                            </span>
+                          </div>
+                        )}
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="text-xs text-gray-500 block">
+                            Satisfaction
+                          </span>
+                          <span className="font-bold">
+                            {submission.satisfactionRating}/5
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {submission.complaints && (
+                          <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                            <h4 className="text-sm font-bold text-red-900 mb-1">
+                              Complaints/Issues
+                            </h4>
+                            <p className="text-red-800 text-sm">
+                              {submission.complaints}
+                            </p>
+                          </div>
+                        )}
+                        {submission.suggestions && (
+                          <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                            <h4 className="text-sm font-bold text-indigo-900 mb-1">
+                              Suggestions
+                            </h4>
+                            <p className="text-indigo-800 text-sm">
+                              {submission.suggestions}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Bug Report Specific View */}
-                  {submission.type === "Bug Report" ? (
+                  {submission.type === "Bug Report" && (
                     <div className="space-y-3">
                       <div>
                         <h3 className="text-base sm:text-lg font-bold text-gray-900 break-words">
@@ -398,94 +616,29 @@ const Dashboard = () => {
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    // Survey View (Residential / Non-Residential)
+                  )}
+
+                  {/* Legacy Views */}
+                  {(submission.type === "Residential" ||
+                    submission.type === "Non-Residential") && (
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                        {/* ... Legacy details ... */}
                         {submission.type === "Residential" && (
-                          <>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                                Dorm Condition
-                              </span>
-                              <p className="text-sm sm:text-base text-gray-900 font-medium mt-1">
-                                {submission.dormCondition}
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                                Cleanliness
-                              </span>
-                              <div className="flex items-center mt-1">
-                                <span className="text-base sm:text-lg font-bold text-gray-900">
-                                  {submission.cleanliness}
-                                </span>
-                                <span className="text-gray-400 text-xs ml-1">
-                                  / 5
-                                </span>
-                              </div>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                                Food Quality
-                              </span>
-                              <div className="flex items-center mt-1">
-                                <span className="text-base sm:text-lg font-bold text-gray-900">
-                                  {submission.foodQuality}
-                                </span>
-                                <span className="text-gray-400 text-xs ml-1">
-                                  / 5
-                                </span>
-                              </div>
-                            </div>
-                          </>
+                          <div className="text-sm text-gray-600">
+                            Dorm: {submission.dormCondition} | Clean:{" "}
+                            {submission.cleanliness}/5
+                          </div>
                         )}
-
                         {submission.type === "Non-Residential" && (
-                          <>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                                Classroom Env
-                              </span>
-                              <p className="text-sm sm:text-base text-gray-900 font-medium mt-1">
-                                {submission.classroomEnvironment}
-                              </p>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                                Teaching
-                              </span>
-                              <div className="flex items-center mt-1">
-                                <span className="text-base sm:text-lg font-bold text-gray-900">
-                                  {submission.teachingQuality}
-                                </span>
-                                <span className="text-gray-400 text-xs ml-1">
-                                  / 5
-                                </span>
-                              </div>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                                Facilities
-                              </span>
-                              <div className="flex items-center mt-1">
-                                <span className="text-base sm:text-lg font-bold text-gray-900">
-                                  {submission.facilities}
-                                </span>
-                                <span className="text-gray-400 text-xs ml-1">
-                                  / 5
-                                </span>
-                              </div>
-                            </div>
-                          </>
+                          <div className="text-sm text-gray-600">
+                            Classroom: {submission.classroomEnvironment} |
+                            Teaching: {submission.teachingQuality}/5
+                          </div>
                         )}
                       </div>
-
                       <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-100">
-                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-2">
-                          Detailed Review
-                        </span>
-                        <p className="text-sm sm:text-base text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
+                        <p className="text-sm text-gray-700">
                           {submission.review}
                         </p>
                       </div>

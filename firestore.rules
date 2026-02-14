@@ -17,7 +17,7 @@ service cloud.firestore {
         let data = request.resource.data;
         
         // Check required fields based on type
-        return data.type in ['Residential', 'Non-Residential', 'Bug Report']
+        return data.type in ['Student Voice', 'Dorm Life', 'Bug Report', 'Residential', 'Non-Residential']
           && data.keys().hasAll(['type', 'timestamp', 'read'])
           && data.read == false
           && (data.deleted == false || !("deleted" in data))
