@@ -22,9 +22,15 @@ import {
   MessageSquare,
   Activity,
   AlertTriangle,
+  PieChart,
+  LayoutList,
+  Settings,
+  Printer,
 } from "lucide-react";
 import clsx from "clsx";
 import toast from "react-hot-toast";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { downloadCSV } from "../../lib/csvExport";
 
 interface Submission {
   id: string;
@@ -57,6 +63,7 @@ interface Submission {
 const Dashboard = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "analytics">("list");
   const [filter, setFilter] = useState<
     | "All"
     | "Residential"
@@ -138,57 +145,177 @@ const Dashboard = () => {
   });
 
   const handleExport = () => {
-    if (submissions.length === 0) return;
+    downloadCSV(submissions);
+  };
 
-    const headers = [
-      "ID",
-      "Type",
-      "Date",
-      "Title/Review/Feedback",
-      "Description/Meta",
-      "Status",
-      "Sentiment",
-      "Urgency",
-    ];
+  const handlePrint = (submission: Submission) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
 
-    const csvRows = [headers.join(",")];
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Submission ${submission.id}</title>
+          <style>
+             @page { size: A4; margin: 2cm; }
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.5; color: #111827; }
+            h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 24px; font-size: 24px; }
+            .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 32px; background: #f9fafb; padding: 16px; border-radius: 8px; }
+            .meta-item { display: flex; flex-direction: column; }
+            .meta-label { font-size: 12px; text-transform: uppercase; color: #6b7280; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 4px; }
+            .meta-value { font-size: 16px; font-weight: 500; }
+            .section { margin-bottom: 24px; page-break-inside: avoid; }
+            .label { font-weight: 600; color: #374151; display: block; margin-bottom: 8px; font-size: 14px; }
+            .value { background: #fff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
+            .badge { display: inline-flex; items-center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+            .footer { margin-top: 48px; border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center; color: #9ca3af; font-size: 12px; }
+            @media print {
+              body { padding: 0; }
+              .value { border: 1px solid #ddd; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Submission Details</h1>
+          
+          <div class="meta">
+            <div class="meta-item">
+              <span class="meta-label">ID</span>
+              <span class="meta-value">${submission.id}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Date</span>
+              <span class="meta-value">${submission.timestamp?.toDate().toLocaleString()}</span>
+            </div>
+             <div class="meta-item">
+              <span class="meta-label">Type</span>
+              <span class="meta-value">${submission.type}</span>
+            </div>
+             <div class="meta-item">
+              <span class="meta-label">Status</span>
+              <span class="meta-value">${submission.read ? "Read" : "Unread"}</span>
+            </div>
+            ${
+              submission.priority
+                ? `
+            <div class="meta-item">
+              <span class="meta-label">Priority</span>
+              <span class="meta-value" style="color: ${submission.priority === "High" ? "#dc2626" : "inherit"}">${submission.priority}</span>
+            </div>`
+                : ""
+            }
+          </div>
 
-    submissions.forEach((sub) => {
-      const date = sub.timestamp?.toDate().toLocaleDateString() || "";
-      let titleReview =
-        sub.title || sub.review || sub.openFeedback || sub.complaints || "";
-      let descDetails = sub.description || "";
+          ${
+            submission.title
+              ? `
+            <div class="section">
+              <span class="label">Subject</span>
+              <div class="value" style="font-weight: bold; font-size: 18px;">${submission.title}</div>
+            </div>
+          `
+              : ""
+          }
 
-      if (sub.type === "Student Voice") {
-        titleReview = sub.openFeedback || "No open feedback";
-        descDetails = `Ratings: Gen=${sub.generalExperienceRating}, Safety=${sub.safetyRating}`;
-      } else if (sub.type === "Dorm Life") {
-        titleReview = sub.complaints || "No complaints";
-        descDetails = `Block: ${sub.dormBlock}, Room: ${sub.roomNumber}, Rating: ${sub.satisfactionRating}, Suggestion: ${sub.suggestions}`;
-      }
+          ${
+            submission.type === "Student Voice"
+              ? `
+            <div class="section">
+              <span class="label">Ratings</span>
+              <div class="value">
+                General: <strong>${submission.generalExperienceRating}/5</strong> &bull; 
+                Safety: <strong>${submission.safetyRating}/5</strong> &bull; 
+                Learning: <strong>${submission.learningSupportRating}/5</strong> &bull; 
+                Comm: <strong>${submission.communicationRating}/5</strong>
+              </div>
+            </div>
+             <div class="section">
+              <span class="label">Open Feedback</span>
+              <div class="value">${submission.openFeedback || "N/A"}</div>
+            </div>
+             <div class="section">
+              <span class="label">Impact Areas</span>
+              <div class="value">${submission.impactAreas?.join(", ") || "N/A"}</div>
+            </div>
+             <div class="section">
+              <span class="label">Learning Improvements</span>
+              <div class="value">${submission.learningImprovements || "N/A"}</div>
+            </div>
+             <div class="section">
+              <span class="label">Culture Improvements</span>
+              <div class="value">${submission.cultureImprovements || "N/A"}</div>
+            </div>
+          `
+              : ""
+          }
 
-      const row = [
-        sub.id,
-        sub.type,
-        `"${date}"`,
-        `"${titleReview.replace(/"/g, '""')}"`,
-        `"${descDetails.replace(/"/g, '""')}"`,
-        sub.read ? "Read" : "Unread",
-        sub.meta?.sentiment || "N/A",
-        sub.meta?.urgency || "N/A",
-      ];
-      csvRows.push(row.join(","));
-    });
+          ${
+            submission.type === "Dorm Life"
+              ? `
+             <div class="section">
+               <span class="label">Location</span>
+               <div class="value">${submission.dormBlock} ${submission.roomNumber ? ` - Room ${submission.roomNumber}` : ""}</div>
+             </div>
+             <div class="section">
+               <span class="label">Satisfaction Rating</span>
+               <div class="value"><strong>${submission.satisfactionRating}/5</strong></div>
+             </div>
+             <div class="section">
+               <span class="label">Complaints</span>
+               <div class="value">${submission.complaints || "N/A"}</div>
+             </div>
+             <div class="section">
+               <span class="label">Suggestions</span>
+               <div class="value">${submission.suggestions || "N/A"}</div>
+             </div>
+           `
+              : ""
+          }
 
-    const csvString = csvRows.join("\n");
-    const blob = new Blob([csvString], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `survey-submissions-${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+            ${
+              submission.type === "Bug Report"
+                ? `
+             <div class="section">
+               <span class="label">Description</span>
+               <div class="value">${submission.description || "N/A"}</div>
+             </div>
+           `
+                : ""
+            }
+
+            ${
+              submission.meta?.sentiment
+                ? `
+             <div class="section">
+               <span class="label">AI Analysis</span>
+               <div class="value">
+                  Sentiment: ${submission.meta.sentiment} <br/>
+                  Urgency: ${submission.meta.urgency}
+               </div>
+             </div>
+             `
+                : ""
+            }
+
+          <div class="footer">
+            Printed from Stony Hill Survey Admin Dashboard
+          </div>
+
+          <script>
+            window.onload = () => {
+                setTimeout(() => {
+                    window.print();
+                    // Optional: window.close();
+                }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
   };
 
   const runMigration = async () => {
@@ -214,7 +341,45 @@ const Dashboard = () => {
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+
+        {/* View Switcher - Center (Desktop) or Below Title (Mobile) */}
+        <div className="flex p-1 bg-gray-100 rounded-lg">
+          <button
+            onClick={() => setViewMode("list")}
+            className={clsx(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+              viewMode === "list"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-900",
+            )}
+          >
+            <LayoutList className="w-4 h-4" />
+            <span className="hidden sm:inline">List View</span>
+          </button>
+          <button
+            onClick={() => setViewMode("analytics")}
+            className={clsx(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+              viewMode === "analytics"
+                ? "bg-white text-indigo-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-900",
+            )}
+          >
+            <PieChart className="w-4 h-4" />
+            <span className="hidden sm:inline">Analytics</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/admin/settings")}
+            className="flex items-center gap-2 text-gray-700 border-gray-200 hover:bg-gray-50"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -245,8 +410,9 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Analytics Cards */}
+      {/* Analytics Cards - Always Visible (Summary) */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* ... (Cards same as before) ... */}
         <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase">
@@ -332,324 +498,340 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-center gap-2 text-gray-500">
-          <Filter className="w-4 h-4" />
-          <span className="text-sm font-medium">Filter:</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              "All",
-              "Unread",
-              "Student Voice",
-              "Dorm Life",
-              "Bug Report",
-            ] as const
-          ).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={clsx(
-                "px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors border",
-                filter === f
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50",
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Submissions List */}
-      <div>
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p className="mt-4 text-gray-500">Loading submissions...</p>
-          </div>
-        ) : filteredSubmissions.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-            <p className="text-gray-500">
-              No submissions found matching this filter.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredSubmissions.map((submission) => (
-              <div
-                key={submission.id}
-                className={clsx(
-                  "bg-white rounded-xl shadow-sm border transition-all duration-200 overflow-hidden",
-                  submission.read
-                    ? "border-gray-200"
-                    : "border-indigo-200 ring-1 ring-indigo-50 shadow-md",
-                  submission.meta?.flagged && "border-red-500 ring-red-200", // Visual cue for flagged items
-                )}
-              >
-                {/* Card Header */}
-                <div className="px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/50">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {!submission.read && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        New
-                      </span>
-                    )}
-
-                    {/* Metadata Badges */}
-                    {submission.meta?.urgency &&
-                      submission.meta.urgency !== "Normal" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          {submission.meta.urgency}
-                        </span>
-                      )}
-                    {submission.meta?.flagged && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
-                        ⚠️ FLAGGED
-                      </span>
-                    )}
-
-                    <span
-                      className={clsx(
-                        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                        submission.type === "Student Voice"
-                          ? "bg-purple-100 text-purple-800"
-                          : submission.type === "Dorm Life"
-                            ? "bg-blue-100 text-blue-800"
-                            : submission.type === "Residential"
-                              ? "bg-green-100 text-green-800"
-                              : submission.type === "Non-Residential"
-                                ? "bg-cyan-100 text-cyan-800"
-                                : "bg-orange-100 text-orange-800",
-                      )}
-                    >
-                      {submission.type}
-                    </span>
-                    <span className="text-xs sm:text-sm text-gray-500">
-                      {submission.timestamp?.toDate().toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    {!submission.read && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleMarkAsRead(submission.id)}
-                        className="text-xs h-8"
-                      >
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Mark Read
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleSoftDelete(submission.id)}
-                      className="text-gray-400 hover:text-red-600 h-8 w-8 p-0"
-                      title="Move to Trash"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="p-4 sm:p-6">
-                  {/* Student Voice View */}
-                  {submission.type === "Student Voice" && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-xs text-gray-500 block">
-                            General Exp
-                          </span>
-                          <span className="font-bold">
-                            {submission.generalExperienceRating}/5
-                          </span>
-                        </div>
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-xs text-gray-500 block">
-                            Safety
-                          </span>
-                          <span className="font-bold">
-                            {submission.safetyRating}/5
-                          </span>
-                        </div>
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-xs text-gray-500 block">
-                            Learning
-                          </span>
-                          <span className="font-bold">
-                            {submission.learningSupportRating}/5
-                          </span>
-                        </div>
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-xs text-gray-500 block">
-                            Communication
-                          </span>
-                          <span className="font-bold">
-                            {submission.communicationRating}/5
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Sections with content */}
-                      {submission.openFeedback && (
-                        <div>
-                          <h4 className="text-sm font-bold text-gray-900">
-                            Open Feedback
-                          </h4>
-                          <p className="text-gray-700 text-sm mt-1">
-                            {submission.openFeedback}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {submission.learningImprovements && (
-                          <div>
-                            <h4 className="text-sm font-bold text-gray-900">
-                              Learning Improvements
-                            </h4>
-                            <p className="text-gray-600 text-sm">
-                              {submission.learningImprovements}
-                            </p>
-                          </div>
-                        )}
-                        {submission.cultureImprovements && (
-                          <div>
-                            <h4 className="text-sm font-bold text-gray-900">
-                              Culture Improvements
-                            </h4>
-                            <p className="text-gray-600 text-sm">
-                              {submission.cultureImprovements}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+      {/* Main Content Area */}
+      {viewMode === "analytics" ? (
+        <AnalyticsDashboard submissions={submissions} />
+      ) : (
+        <>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 text-gray-500">
+              <Filter className="w-4 h-4" />
+              <span className="text-sm font-medium">Filter:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  "All",
+                  "Unread",
+                  "Student Voice",
+                  "Dorm Life",
+                  "Bug Report",
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors border",
+                    filter === f
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50",
                   )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
 
-                  {/* Dorm Life View */}
-                  {submission.type === "Dorm Life" && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-xs text-gray-500 block">
-                            Block
+          {/* Submissions List */}
+          <div>
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <p className="mt-4 text-gray-500">Loading submissions...</p>
+              </div>
+            ) : filteredSubmissions.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                <p className="text-gray-500">
+                  No submissions found matching this filter.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredSubmissions.map((submission) => (
+                  <div
+                    key={submission.id}
+                    className={clsx(
+                      "bg-white rounded-xl shadow-sm border transition-all duration-200 overflow-hidden",
+                      submission.read
+                        ? "border-gray-200"
+                        : "border-indigo-200 ring-1 ring-indigo-50 shadow-md",
+                      submission.meta?.flagged && "border-red-500 ring-red-200", // Visual cue for flagged items
+                    )}
+                  >
+                    {/* Card Header */}
+                    <div className="px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/50">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        {!submission.read && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            New
                           </span>
-                          <span className="font-bold">
-                            {submission.dormBlock}
-                          </span>
-                        </div>
-                        {submission.roomNumber && (
-                          <div className="bg-gray-50 p-2 rounded">
-                            <span className="text-xs text-gray-500 block">
-                              Room
+                        )}
+
+                        {/* Metadata Badges */}
+                        {submission.meta?.urgency &&
+                          submission.meta.urgency !== "Normal" && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              {submission.meta.urgency}
                             </span>
-                            <span className="font-bold">
-                              {submission.roomNumber}
-                            </span>
-                          </div>
-                        )}
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-xs text-gray-500 block">
-                            Satisfaction
+                          )}
+                        {submission.meta?.flagged && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
+                            ⚠️ FLAGGED
                           </span>
-                          <span className="font-bold">
-                            {submission.satisfactionRating}/5
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {submission.complaints && (
-                          <div className="bg-red-50 p-3 rounded-lg border border-red-100">
-                            <h4 className="text-sm font-bold text-red-900 mb-1">
-                              Complaints/Issues
-                            </h4>
-                            <p className="text-red-800 text-sm">
-                              {submission.complaints}
-                            </p>
-                          </div>
                         )}
-                        {submission.suggestions && (
-                          <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-                            <h4 className="text-sm font-bold text-indigo-900 mb-1">
-                              Suggestions
-                            </h4>
-                            <p className="text-indigo-800 text-sm">
-                              {submission.suggestions}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Bug Report Specific View */}
-                  {submission.type === "Bug Report" && (
-                    <div className="space-y-3">
-                      <div>
-                        <h3 className="text-base sm:text-lg font-bold text-gray-900 break-words">
-                          {submission.title}
-                        </h3>
                         <span
                           className={clsx(
-                            "inline-flex items-center mt-1 px-2 py-0.5 rounded text-xs font-medium",
-                            submission.priority === "High"
-                              ? "bg-red-100 text-red-800"
-                              : submission.priority === "Medium"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-gray-100 text-gray-800",
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                            submission.type === "Student Voice"
+                              ? "bg-purple-100 text-purple-800"
+                              : submission.type === "Dorm Life"
+                                ? "bg-blue-100 text-blue-800"
+                                : submission.type === "Residential"
+                                  ? "bg-green-100 text-green-800"
+                                  : submission.type === "Non-Residential"
+                                    ? "bg-cyan-100 text-cyan-800"
+                                    : "bg-orange-100 text-orange-800",
                           )}
                         >
-                          Priority: {submission.priority}
+                          {submission.type}
+                        </span>
+                        <span className="text-xs sm:text-sm text-gray-500">
+                          {submission.timestamp?.toDate().toLocaleString()}
                         </span>
                       </div>
-                      <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-100">
-                        <p className="text-sm sm:text-base text-gray-800 whitespace-pre-wrap break-words">
-                          {submission.description}
-                        </p>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handlePrint(submission)}
+                          className="text-gray-400 hover:text-indigo-600 h-8 w-8 p-0"
+                          title="Print Protocol"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </Button>
+                        {!submission.read && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleMarkAsRead(submission.id)}
+                            className="text-xs h-8"
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Mark Read
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSoftDelete(submission.id)}
+                          className="text-gray-400 hover:text-red-600 h-8 w-8 p-0"
+                          title="Move to Trash"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                  )}
 
-                  {/* Legacy Views */}
-                  {(submission.type === "Residential" ||
-                    submission.type === "Non-Residential") && (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        {/* ... Legacy details ... */}
-                        {submission.type === "Residential" && (
-                          <div className="text-sm text-gray-600">
-                            Dorm: {submission.dormCondition} | Clean:{" "}
-                            {submission.cleanliness}/5
+                    {/* Card Body */}
+                    <div className="p-4 sm:p-6">
+                      {/* Student Voice View */}
+                      {submission.type === "Student Voice" && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="bg-gray-50 p-2 rounded">
+                              <span className="text-xs text-gray-500 block">
+                                General Exp
+                              </span>
+                              <span className="font-bold">
+                                {submission.generalExperienceRating}/5
+                              </span>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <span className="text-xs text-gray-500 block">
+                                Safety
+                              </span>
+                              <span className="font-bold">
+                                {submission.safetyRating}/5
+                              </span>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <span className="text-xs text-gray-500 block">
+                                Learning
+                              </span>
+                              <span className="font-bold">
+                                {submission.learningSupportRating}/5
+                              </span>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <span className="text-xs text-gray-500 block">
+                                Communication
+                              </span>
+                              <span className="font-bold">
+                                {submission.communicationRating}/5
+                              </span>
+                            </div>
                           </div>
-                        )}
-                        {submission.type === "Non-Residential" && (
-                          <div className="text-sm text-gray-600">
-                            Classroom: {submission.classroomEnvironment} |
-                            Teaching: {submission.teachingQuality}/5
+
+                          {/* Sections with content */}
+                          {submission.openFeedback && (
+                            <div>
+                              <h4 className="text-sm font-bold text-gray-900">
+                                Open Feedback
+                              </h4>
+                              <p className="text-gray-700 text-sm mt-1">
+                                {submission.openFeedback}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {submission.learningImprovements && (
+                              <div>
+                                <h4 className="text-sm font-bold text-gray-900">
+                                  Learning Improvements
+                                </h4>
+                                <p className="text-gray-600 text-sm">
+                                  {submission.learningImprovements}
+                                </p>
+                              </div>
+                            )}
+                            {submission.cultureImprovements && (
+                              <div>
+                                <h4 className="text-sm font-bold text-gray-900">
+                                  Culture Improvements
+                                </h4>
+                                <p className="text-gray-600 text-sm">
+                                  {submission.cultureImprovements}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-100">
-                        <p className="text-sm text-gray-700">
-                          {submission.review}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
+                        </div>
+                      )}
+
+                      {/* Dorm Life View */}
+                      {submission.type === "Dorm Life" && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="bg-gray-50 p-2 rounded">
+                              <span className="text-xs text-gray-500 block">
+                                Block
+                              </span>
+                              <span className="font-bold">
+                                {submission.dormBlock}
+                              </span>
+                            </div>
+                            {submission.roomNumber && (
+                              <div className="bg-gray-50 p-2 rounded">
+                                <span className="text-xs text-gray-500 block">
+                                  Room
+                                </span>
+                                <span className="font-bold">
+                                  {submission.roomNumber}
+                                </span>
+                              </div>
+                            )}
+                            <div className="bg-gray-50 p-2 rounded">
+                              <span className="text-xs text-gray-500 block">
+                                Satisfaction
+                              </span>
+                              <span className="font-bold">
+                                {submission.satisfactionRating}/5
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {submission.complaints && (
+                              <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                <h4 className="text-sm font-bold text-red-900 mb-1">
+                                  Complaints/Issues
+                                </h4>
+                                <p className="text-red-800 text-sm">
+                                  {submission.complaints}
+                                </p>
+                              </div>
+                            )}
+                            {submission.suggestions && (
+                              <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                <h4 className="text-sm font-bold text-indigo-900 mb-1">
+                                  Suggestions
+                                </h4>
+                                <p className="text-indigo-800 text-sm">
+                                  {submission.suggestions}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Bug Report Specific View */}
+                      {submission.type === "Bug Report" && (
+                        <div className="space-y-3">
+                          <div>
+                            <h3 className="text-base sm:text-lg font-bold text-gray-900 break-words">
+                              {submission.title}
+                            </h3>
+                            <span
+                              className={clsx(
+                                "inline-flex items-center mt-1 px-2 py-0.5 rounded text-xs font-medium",
+                                submission.priority === "High"
+                                  ? "bg-red-100 text-red-800"
+                                  : submission.priority === "Medium"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800",
+                              )}
+                            >
+                              Priority: {submission.priority}
+                            </span>
+                          </div>
+                          <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-100">
+                            <p className="text-sm sm:text-base text-gray-800 whitespace-pre-wrap break-words">
+                              {submission.description}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Legacy Views */}
+                      {(submission.type === "Residential" ||
+                        submission.type === "Non-Residential") && (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                            {/* ... Legacy details ... */}
+                            {submission.type === "Residential" && (
+                              <div className="text-sm text-gray-600">
+                                Dorm: {submission.dormCondition} | Clean:{" "}
+                                {submission.cleanliness}/5
+                              </div>
+                            )}
+                            {submission.type === "Non-Residential" && (
+                              <div className="text-sm text-gray-600">
+                                Classroom: {submission.classroomEnvironment} |
+                                Teaching: {submission.teachingQuality}/5
+                              </div>
+                            )}
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-100">
+                            <p className="text-sm text-gray-700">
+                              {submission.review}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };

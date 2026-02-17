@@ -7,33 +7,10 @@ import { Button } from "../../components/ui/Button";
 import { Textarea } from "../../components/ui/Textarea";
 import SuccessModal from "../../components/SuccessModal";
 import toast from "react-hot-toast";
+import { useAppConfig } from "../../hooks/useAppConfig";
+import { Loader2 } from "lucide-react";
 
 import { processSubmission } from "../../lib/alertEngine";
-
-// --- CONSTANTS ---
-
-const IMPACT_AREAS = [
-  "Teaching and instruction",
-  "Student support",
-  "Facilities and environment",
-  "Safety and discipline",
-  "Communication and announcements",
-  "Student activities and events",
-  "Administrative services",
-  "Peer relationships",
-  "Other",
-];
-
-const OPERATIONAL_AREAS = [
-  "Bathrooms and hygiene",
-  "Classroom comfort",
-  "Cafeteria services",
-  "Security procedures",
-  "Timetabling",
-  "Maintenance",
-  "Access to resources",
-  "Other",
-];
 
 // --- VALIDATION SCHEMA ---
 const schema = z.object({
@@ -50,18 +27,27 @@ const schema = z.object({
 
   // School Operations & Facilities
   operationalImprovements: z.array(z.string()).optional(),
-  oneOperationalChange: z.string().max(500).optional(),
+  oneOperationalChange: z
+    .string()
+    .max(500, "Limit to 500 characters")
+    .optional(),
 
   // Student Well-being & School Culture
   safetyRating: z.enum(["1", "2", "3", "4", "5"]),
-  cultureImprovements: z.string().max(500).optional(),
+  cultureImprovements: z
+    .string()
+    .max(500, "Limit to 500 characters")
+    .optional(),
 
   // Communication & Engagement
   communicationRating: z.enum(["1", "2", "3", "4", "5"]),
-  communicationSuggestions: z.string().max(400).optional(),
+  communicationSuggestions: z
+    .string()
+    .max(400, "Limit to 400 characters")
+    .optional(),
 
   // Open Feedback
-  openFeedback: z.string().max(700).optional(),
+  openFeedback: z.string().max(700, "Limit to 700 characters").optional(),
 
   // Meta
   isAnonymous: z.boolean(),
@@ -71,6 +57,8 @@ type SurveyFormValues = z.infer<typeof schema>;
 
 const StudentVoiceSurvey = () => {
   const [submitted, setSubmitted] = useState(false);
+  const { config, loading: configLoading } = useAppConfig();
+
   const {
     register,
     handleSubmit,
@@ -151,6 +139,14 @@ const StudentVoiceSurvey = () => {
     );
   }
 
+  if (configLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -213,7 +209,7 @@ const StudentVoiceSurvey = () => {
                     most?
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {IMPACT_AREAS.map((area) => (
+                    {config.impactAreas.map((area) => (
                       <label key={area} className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -298,7 +294,7 @@ const StudentVoiceSurvey = () => {
                     Which operational areas could benefit most from improvement?
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {OPERATIONAL_AREAS.map((area) => (
+                    {config.operationalAreas.map((area) => (
                       <label key={area} className="flex items-center gap-2">
                         <input
                           type="checkbox"

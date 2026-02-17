@@ -16,6 +16,11 @@ const DormLifeSurvey = lazy(() => import("./pages/student/DormLifeSurvey"));
 const BugReport = lazy(() => import("./pages/BugReport"));
 const AdminLogin = lazy(() => import("./pages/admin/Login"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const AdminSettings = lazy(() =>
+  import("./pages/admin/Settings").then((module) => ({
+    default: module.AdminSettings,
+  })),
+);
 const AdminTrash = lazy(() => import("./pages/admin/Trash"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -30,7 +35,6 @@ function App() {
               <Route path="/" element={<Home />} />
 
               {/* Student Routes */}
-              {/* Student Routes */}
               <Route path="/student/voice" element={<StudentVoiceSurvey />} />
               <Route path="/student/dorm-life" element={<DormLifeSurvey />} />
               <Route path="/report-bug" element={<BugReport />} />
@@ -42,6 +46,14 @@ function App() {
                 element={
                   <AuthGuard>
                     <Dashboard />
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/admin/settings"
+                element={
+                  <AuthGuard>
+                    <AdminSettings />
                   </AuthGuard>
                 }
               />
